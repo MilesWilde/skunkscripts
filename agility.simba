@@ -32,6 +32,7 @@ type
   );
 
   ECourse = (
+    GNOME_AGILITY,
     VARROCK_AGILITY,
     CANIFIS_AGILITY,
     SEERS_AGILITY
@@ -100,7 +101,7 @@ begin
     WriteLn 'Spotted Mark of grace';
     if currentPlatform.Box.Contains(RSGroundItems.MarkOfGrace.ClosestDot) then
       Exit(True);
-    
+
 
     WriteLn 'Not on our platform';
     WriteLn RSGroundItems.MarkOfGrace.ClosestDot
@@ -159,6 +160,7 @@ end;
 procedure TAgility.Setup(location: ECourse);
 begin
   case location of
+    ECourse.GNOME_AGILITY: Self.SetupGnome();
     ECourse.VARROCK_AGILITY: Self.SetupVarrock();
     ECourse.CANIFIS_AGILITY: Self.SetupCanifis();
     ECourse.SEERS_AGILITY: Self.SetupSeers();
@@ -240,6 +242,32 @@ begin
   Self.StartObstacle.Finder.Colors += CTS2(2638161, 10, 0.08, 0.33);
 end;
 
+procedure TAgility.SetupGnome();
+begin
+  Self.CourseBoxes := [
+    [82, 81, 175, 192]
+  ];
+  Self.RSW.Setup('agility');
+  ItemFinder.Similarity := 0.9999;
+  Self.StartCoordinate := [106, 104];
+  Self.RSW.WebGraph := WaspAgility;
+  Self.CityBox := [82, 81, 175, 192];
+  Self.StartAction := 'Walk-across';
+  Self.Platforms := [
+    SetupPlatform([82, 78, 173, 104], [106, 104], 'Walk-across', 12000),
+    SetupPlatform([89, 125, 124, 149], [106, 144], 'Climb-over', 6500, CTS2(1654104, 21, 0.06, 2.20)),
+    SetupPlatform([338, 184, 358, 192], [348, 192], 'Climb', 5500),
+    SetupPlatform([332, 75, 364, 103], [362, 88], 'Walk-on', 7000, CTS2(6391459, 5, 0.06, 0.62)),
+    SetupPlatform([384, 74, 419, 107], [396, 92], 'Climb-down', 3000),
+    SetupPlatform([130, 140, 166, 176], [150, 140], 'Climb-over', 7500),
+    SetupPlatform([130, 116, 170, 140], [146, 120], 'Squeeze-through', 9500, CTS2(5527130, 13, 0.56, 0.13))
+  ];
+
+  Self.StartObstacle.Setup(0, [[106, 104]]);
+  Self.StartObstacle.Setup([Self.StartAction]);
+  Self.StartObstacle.Finder.Colors += CTS2(1067632, 1, 0.17, 0.94);
+end;
+
 procedure TAntiban.SetupBreaks(); override;
 begin
   if Self.Breaks <> [] then
@@ -312,9 +340,9 @@ procedure TAgility.Init(MaxActions: Int32; MaxTime: Int64); override;
 begin
   inherited;
   RSGroundItems.Setup();
-  Mouse.Speed := 28;
+  Mouse.Speed := SRL.NormalRange(12, 21);
   Mouse.MissChance := 1;
-  Self.Setup(ECourse.CANIFIS_AGILITY);
+  Self.Setup(ECourse.GNOME_AGILITY);
   Antiban.MaxZoom := 15;
   Antiban.MinZoom := 25;
 end;
