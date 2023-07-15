@@ -1,8 +1,10 @@
 {$IFDEF WINDOWS}
 {$DEFINE SCRIPT_GUI}
 {$ENDIF}
-{$I SRL-T/osr.simba}
-{$I WaspLib/osr.simba}
+{$UNDEF SCRIPT_REVISION}{$DEFINE SCRIPT_REVISION := '4'}
+{$include_once SRL-T/osr.simba}
+{$include_once WaspLib/osr.simba}
+{$I WaspLib/osr/walker/agility.graph}
 
 begin
   Login.PlayerIndex := 0;
@@ -21,18 +23,22 @@ type
     Color: TCTS2Color;
   end;
 
-  EState = (
+  EAgilityState = (
     RUNNING_TO_START,
     STARTING_COURSE,
-    CROSSING_PLATFORM,
     CROSSING_OBSTACLE,
     PICKING_UP_GRACE,
     UNPROCESSABLE_STATE
   );
 
-  TScript = record (TBaseScript)
-    State: EState;
-    RSW: TRSWalker;
+  ECourse = (
+    VARROCK_AGILITY,
+    CANIFIS_AGILITY,
+    SEERS_AGILITY
+  );
+
+  TAgility = record (TBaseBankScript)
+    State: EAgilityState;
     Platforms: array of TPlatform;
     CourseBoxes: TBoxArray;
     CityBox: TBox;
@@ -44,12 +50,10 @@ type
     MarkOfGraceCoordinate: TPoint;
   end;
 
-function TPlatform.Setup(box: TBox; startCoord, endCoord, obstacleCoord: TPoint; actionText: String; durationNextObstacle: Int32; color: TCTS2Color; height: Int32): TPlatform;
+function TPlatform.Setup(box: TBox; obstacleCoord: TPoint; actionText: String; durationNextObstacle: Int32; color: TCTS2Color; height: Int32): TPlatform;
 begin
   Self.IsSetup := True;
   Self.Box := box;
-  Self.StartCoordinate := startCoord;
-  Self.EndCoordinate := endCoord;
   Self.ActionText := actionText;
   Self.DurationNextObstacle := durationNextObstacle;
   Self.Obstacle.Setup(height, [obstacleCoord]);
@@ -63,35 +67,31 @@ begin
   Exit(Self);
 end;
 
-function SetupPlatform(box: TBox; startCoord, endCoord, obstacleCoord: TPoint; actionText: String; durationNextObstacle: Int32 = 1000; color: TCTS2Color = []; height: Int32 = 1): TPlatform;
+function SetupPlatform(box: TBox; obstacleCoord: TPoint; actionText: String; durationNextObstacle: Int32 = 1000; color: TCTS2Color = []; height: Int32 = 1): TPlatform;
 var
   platform: TPlatform;
 begin
-    Exit(platform.Setup(box, startCoord, endCoord, obstacleCoord, actionText, durationNextObstacle, color, height));
+    Exit(platform.Setup(box, obstacleCoord, actionText, durationNextObstacle, color, height));
 end;
 
-function TScript.GetState(): EState;
+function TAgility.GetState(): EAgilityState;
 var
   currentPlatform: TPlatform;
 begin
     currentPlatform := Self.GetCurrentPlatform();
     if Self.IsMarkOfGraceOnPlatform(currentPlatform) then
-      Exit(PICKING_UP_GRACE);
-    if Self.AtStartOfPlatform(currentPlatform) then
-      Exit(CROSSING_OBSTACLE);
-    if Self.AtEndOfPlatform(currentPlatform) then
-      Exit(CROSSING_OBSTACLE);
+      Exit(EAgilityState.PICKING_UP_GRACE);
     if Self.OnPlatform(currentPlatform) then
-      Exit(CROSSING_PLATFORM);
+      Exit(EAgilityState.CROSSING_OBSTACLE);
     if Self.ReadyToStart() then
-      Exit(STARTING_COURSE);
+      Exit(EAgilityState.STARTING_COURSE);
     if Self.NotOnCourse() then
-      Exit(RUNNING_TO_START);
+      Exit(EAgilityState.RUNNING_TO_START);
 
-    Exit(UNPROCESSABLE_STATE);
+    Exit(EAgilityState.UNPROCESSABLE_STATE);
 end;
 
-function TScript.IsMarkOfGraceOnPlatform(currentPlatform: TPlatform): Boolean;
+function TAgility.IsMarkOfGraceOnPlatform(currentPlatform: TPlatform): Boolean;
 var
   graceATPA: T2DPointArray;
 begin
@@ -100,38 +100,40 @@ begin
     WriteLn 'Spotted Mark of grace';
     if currentPlatform.Box.Contains(RSGroundItems.MarkOfGrace.ClosestDot) then
       Exit(True);
+    
 
     WriteLn 'Not on our platform';
+    WriteLn RSGroundItems.MarkOfGrace.ClosestDot
   end;
   Exit(False);
 end;
 
-function TScript.NotOnCourse(): Boolean;
+function TAgility.NotOnCourse(): Boolean;
 begin
   Exit(Self.CityBox.Contains(Self.RSW.GetMyPos()));
 end;
 
-function TScript.ReadyToStart(): Boolean;
+function TAgility.ReadyToStart(): Boolean;
 begin
   Exit(Self.RSW.AtTile(Self.StartCoordinate, 5));
 end;
 
-function TScript.AtStartOfPlatform(currentPlatform: TPlatform): Boolean;
+function TAgility.AtStartOfPlatform(currentPlatform: TPlatform): Boolean;
 begin
   Exit(Self.RSW.AtTile(currentPlatform.StartCoordinate, 5));
 end;
 
-function TScript.AtEndOfPlatform(currentPlatform: TPlatform): Boolean;
+function TAgility.AtEndOfPlatform(currentPlatform: TPlatform): Boolean;
 begin
   Exit(Self.RSW.AtTile(currentPlatform.EndCoordinate, 5));
 end;
 
-function TScript.OnPlatform(currentPlatform: TPlatform): Boolean;
+function TAgility.OnPlatform(currentPlatform: TPlatform): Boolean;
 begin
   Exit(currentPlatform.IsSetup);
 end;
 
-function TScript.GetCurrentPlatform(): TPlatform;
+function TAgility.GetCurrentPlatform(): TPlatform;
 var
   platform: TPlatform;
 begin
@@ -144,61 +146,74 @@ begin
   WriteLn Self.RSW.GetMyPos();
 end;
 
-procedure TScript.RunToStart();
+procedure TAgility.RunToStart();
 begin
-  Self.RSW.WalkBlind(Self.StartCoordinate, 1);
+  Self.RSW.WalkBlind(Self.StartCoordinate, 10);
 end;
 
-procedure TScript.RunToEndOfPlatform();
+procedure TAgility.RunToEndOfPlatform();
 begin
   Self.RSW.WalkBlind(Self.GetCurrentPlatform().EndCoordinate, 3);
 end;
 
-procedure TScript.Setup(location: String);
+procedure TAgility.Setup(location: ECourse);
 begin
   case location of
-    'Varrock': Self.SetupVarrock();
-    'Canifis': Self.SetupCanifis();
+    ECourse.VARROCK_AGILITY: Self.SetupVarrock();
+    ECourse.CANIFIS_AGILITY: Self.SetupCanifis();
+    ECourse.SEERS_AGILITY: Self.SetupSeers();
   else
     raise 'Location provided not registered in cases';
   end;
 end;
 
-procedure TScript.SetupCanifis();
-var
-  walkableBoxes: TBoxArray;
-  courseBox: TBox;
+procedure TAgility.SetupSeers();
 begin
-  Self.CourseBoxes := [
-    [620, 844, 791, 988],
-    [1187, 1142, 1320, 1311]
+  Self.RSW.Setup('agility', 9);
+  Self.RSW.WebGraph := WaspAgility;
+  Self.CityBox := [289, 994, 588, 1300];
+
+  ItemFinder.Similarity := 0.9999;
+  Self.StartCoordinate := [494, 1100];
+  Self.StartAction := 'Climb-up';
+  Self.Platforms := [
+    SetupPlatform([797, 1107, 837, 1140], [796, 1122], 'Jump', 5000, [], 4),
+    SetupPlatform([996, 1106, 1040, 1154], [1022, 1144], 'Cross', 7500, CTS2(4349291, 5, 0.10, 0.22)),
+    SetupPlatform([1019, 1169, 1050, 1198], [1022, 1196], 'Jump', 4000, [], 6),
+    SetupPlatform([709, 1188, 785, 1224], [722, 1225], 'Jump', 4000, [], 5),
+    SetupPlatform([942, 1234, 997, 1266], [994, 1246], 'Jump', 3800)
   ];
+
+  Self.StartObstacle.Setup(7, [[493, 1085]]);
+  Self.StartObstacle.Setup([Self.StartAction]);
+  Self.StartObstacle.Filter.Finder := False;
+end;
+
+procedure TAgility.SetupCanifis();
+begin
+  Self.RSW.Setup('agility', 9);
+  Self.RSW.WebGraph := WaspAgility;
   Self.CityBox := [0, 894, 289, 1183];
 
-  for courseBox in Self.CourseBoxes do
-    walkableBoxes += courseBox;
-
-  walkableBoxes += Self.CityBox;
-  Self.RSW.Setup('agility', walkableBoxes, 9);
   ItemFinder.Similarity := 0.9999;
   Self.StartCoordinate := [197, 1036];
   Self.StartAction := 'Climb';
   Self.Platforms := [
-    SetupPlatform([740, 884, 772, 930], [750, 910], [750, 890], [750, 886], 'Jump', 5000, [], 7),
-    SetupPlatform([704, 849, 743, 868], [733, 863], [717, 863], [709, 863], 'Jump', 5500),
-    SetupPlatform([660, 857, 700, 889], [694, 863], [672, 883], [665, 883], 'Jump', 4000),
-    SetupPlatform([1194, 1178, 1223, 1218], [1216, 1185], [1212, 1209], [1213, 1214], 'Jump', 4000),
-    SetupPlatform([631, 929, 664, 957], [638, 935], [642, 942], [646, 946], 'Pole-vault', 7500, CTS2(3037806, 6, 0.08, 0.32)),
-    SetupPlatform([1230, 1262, 1318, 1310], [1257, 1277], [1309, 1277], [1313, 1275], 'Jump', 7200),
-    SetupPlatform([755, 944, 791, 985], [766, 974], [766, 951], [766, 947], 'Jump', 4500)
+    SetupPlatform([740, 884, 772, 930], [750, 886], 'Jump', 5000, [], 7),
+    SetupPlatform([704, 849, 743, 868], [712, 861], 'Jump', 5500, [], 5),
+    SetupPlatform([660, 857, 700, 889], [665, 883], 'Jump', 4000),
+    SetupPlatform([1194, 1178, 1223, 1218], [1213, 1214], 'Jump', 4000),
+    SetupPlatform([631, 929, 664, 957], [646, 946], 'Pole-vault', 7500, CTS2(3037806, 6, 0.08, 0.32)),
+    SetupPlatform([1230, 1262, 1318, 1310], [1313, 1275], 'Jump', 7200),
+    SetupPlatform([755, 944, 791, 985], [766, 947], 'Jump', 4500)
   ];
 
-  Self.StartObstacle.Setup(7, [[199, 1034]]);
+  Self.StartObstacle.Setup(7, [[201, 1031]]);
   Self.StartObstacle.Setup([Self.StartAction]);
   Self.StartObstacle.Finder.Colors += CTS2(4283478, 12, 0.07, 0.13);
 end;
 
-procedure TScript.SetupVarrock();
+procedure TAgility.SetupVarrock();
 begin
   Self.CourseBoxes := [
     [425, 590, 955, 820]
@@ -206,18 +221,18 @@ begin
   Self.RSW.Setup('agility',  9);
   ItemFinder.Similarity := 0.9999;
   Self.StartCoordinate := [208, 712];
-
+  Self.RSW.WebGraph := WaspAgility;
   Self.CityBox := [0, 574, 360, 893];
   Self.StartAction := 'Climb';
   Self.Platforms := [
-    SetupPlatform([559, 662, 595, 703], [591, 683], [571, 688], [555, 686], 'Cross', 6500),
-    SetupPlatform([516, 660, 549, 690], [546, 683], [519, 676], [513, 675], 'Leap', 5500),
-    SetupPlatform([844, 676, 867, 681], [863, 679], [850, 679], [840, 679], 'Balance', 10000),
-    SetupPlatform([481, 713, 509, 733], [483, 715], [483, 731], [484, 736], 'Leap', 3000),
-    SetupPlatform([465, 724, 549, 763], [487, 748], [546, 731], [550, 737], 'Leap', 7500),
-    SetupPlatform([585, 727, 645, 771], [586, 744], [643, 732], [647, 730], 'Leap', 5500),
-    SetupPlatform([655, 704, 677, 731], [658, 728], [658, 708], [658, 700], 'Hurdle', 4500),
-    SetupPlatform([657, 675, 677, 702], [658, 699], [658, 679], [660, 675], 'Jump-off', 4000)
+    SetupPlatform([559, 662, 595, 703], [565, 684], 'Cross', 6500),
+    SetupPlatform([516, 660, 549, 690], [513, 675], 'Leap', 5500),
+    SetupPlatform([844, 676, 867, 681], [840, 679], 'Balance', 10000),
+    SetupPlatform([481, 713, 509, 733], [484, 736], 'Leap', 3000),
+    SetupPlatform([465, 724, 549, 763], [550, 737], 'Leap', 7500),
+    SetupPlatform([585, 727, 645, 771], [647, 730], 'Leap', 5500),
+    SetupPlatform([655, 704, 677, 731], [658, 704], 'Hurdle', 4500),
+    SetupPlatform([657, 675, 677, 702], [660, 675], 'Jump-off', 4000)
   ];
 
   Self.StartObstacle.Setup(7, [[208, 712]]);
@@ -225,13 +240,24 @@ begin
   Self.StartObstacle.Finder.Colors += CTS2(2638161, 10, 0.08, 0.33);
 end;
 
-procedure TScript.Init(MaxActions: Int32; MaxTime: Int64); override;
+procedure TAntiban.SetupBreaks(); override;
 begin
-  inherited;
-  Self.Setup('Canifis');
+  if Self.Breaks <> [] then
+    Exit;
+  //Self.AddBreak(30 * ONE_MINUTE, 1 * ONE_MINUTE, 0.33, 0.01);
+  //Self.AddBreak(45 * ONE_MINUTE, 2 * ONE_MINUTE, 0.33, 0.15);
+  //Self.OnBreaking := @ OnBreakingTask;
 end;
 
-procedure TScript.Run(MaxActions: Int32; MaxTime: Int64);
+procedure TAntiban.Setup(); override;
+begin
+  Self.Skills := [ERSSkill.TOTAL, ERSSkill.AGILITY];
+  Self.MinZoom := 15;
+  Self.MaxZoom := 25;
+  inherited;
+end;
+
+procedure TAgility.Run(MaxActions: Int32; MaxTime: Int64);
 var
   platform: TPlatform;
   graceATPA: T2DPointArray;
@@ -239,65 +265,62 @@ var
 begin
   Self.Init(MaxActions, MaxTime);
   repeat
-    Self.State := Self.GetState();
-    Self.SetAction(ToStr(State));
-    RSGroundItems.MarkOfGrace.Find(graceATPA);
-    case State of
-      RUNNING_TO_START, STARTING_COURSE:
-        begin
-          WriteLn 'Starting course';
-          WriteLn Self.RSW.GetMyPos();
-          TotalActions += 1;
-          if Self.StartObstacle.Find(startATPA) then
-            Self.StartObstacle.WalkClick(true, 1)
-          else
-            Self.RSW.WalkBlind(Self.StartCoordinate, 5);
+    try
+      Self.State := Self.GetState();
+      Self.SetAction(ToStr(State));
+      RSGroundItems.MarkOfGrace.Find(graceATPA);
+      case State of
+        EAgilityState.RUNNING_TO_START, EAgilityState.STARTING_COURSE:
+          begin
+            WriteLn 'Starting course';
+            WriteLn Self.RSW.GetMyPos();
+            TotalActions += 1;
+            if Self.StartObstacle.Find(startATPA) then
+              Self.StartObstacle.WalkClick(true, 1)
+            else
+              Self.RSW.WebWalk(Self.StartCoordinate, 50);
 
-          Wait(7500, 8500);
+            Wait(7500, 8500);
+          end;
+        EAgilityState.CROSSING_OBSTACLE:
+        begin
+          WriteLn Self.RSW.GetMyPos();
+          platform := Self.GetCurrentPlatform();
+          platform.Obstacle.WalkClick(true, 1);
+          Wait(platform.DurationNextObstacle, platform.DurationNextObstacle + 500);
         end;
-      CROSSING_PLATFORM:
-      begin
-        WriteLn Self.RSW.GetMyPos();
-        Self.RunToEndOfPlatform();
+        EAgilityState.PICKING_UP_GRACE:
+        begin
+          WriteLn 'Picking it up!';
+          RSGroundItems.MarkOfGrace.Click(true, 1);
+          Wait(2000, 2500);
+        end;
+        EAgilityState.UNPROCESSABLE_STATE:
+        begin
+          WriteLn 'this really is unprocessable';
+        end;
       end;
-      CROSSING_OBSTACLE:
-      begin
-        WriteLn Self.RSW.GetMyPos();
-        platform := Self.GetCurrentPlatform();
-        platform.Obstacle.WalkClick(true, 1);
-        Wait(platform.DurationNextObstacle, platform.DurationNextObstacle + 500);
-      end;
-      PICKING_UP_GRACE:
-      begin
-        WriteLn 'Picking it up!';
-        RSGroundItems.MarkOfGrace.Click(true, 1);
-        Wait(2000, 2500);
-      end;
-      //UNPROCESSABLE_STATE:
+      Self.DoAntiban(True, False);
+    except
+      WriteLn GetExceptionMessage();
+      Wait (5000);
     end;
-    Self.DoAntiban(True, False);
   until Self.ShouldStop();
 end;
 
-procedure TAntiban.SetupBreaks(); override;
+procedure TAgility.Init(MaxActions: Int32; MaxTime: Int64); override;
 begin
-  if Self.Breaks <> [] then
-    Exit;
-  Self.AddBreak(30 * ONE_MINUTE, 1 * ONE_MINUTE, 0.33, 0.01);
-  Self.AddBreak(45 * ONE_MINUTE, 2 * ONE_MINUTE, 0.33, 0.15);
-  Self.OnBreaking := @ OnBreakingTask;
-end;
-
-procedure TAntiban.Setup(); override;
-begin
-  Self.Skills := [ERSSkill.TOTAL, ERSSkill.AGILITY];
-  Self.MinZoom := 0;
-  Self.MaxZoom := 40;
   inherited;
+  RSGroundItems.Setup();
+  Mouse.Speed := 28;
+  Mouse.MissChance := 1;
+  Self.Setup(ECourse.CANIFIS_AGILITY);
+  Antiban.MaxZoom := 15;
+  Antiban.MinZoom := 25;
 end;
 
 var
-  Script: TScript;
+  Agility: TAgility;
 begin
-  Script.Run(1000, 100000000);
+  Agility.Run(1000, 100000000);
 end
