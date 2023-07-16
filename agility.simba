@@ -1,3 +1,4 @@
+{$UNDEF SCRIPT_ID}{$DEFINE SCRIPT_ID := '62d50aa2-8708-43b3-b40e-b4406b9b1732'}
 {$IFDEF WINDOWS}
 {$DEFINE SCRIPT_GUI}
 {$ENDIF}
@@ -217,9 +218,6 @@ end;
 
 procedure TAgility.SetupVarrock();
 begin
-  Self.CourseBoxes := [
-    [425, 590, 955, 820]
-  ];
   Self.RSW.Setup('agility',  9);
   ItemFinder.Similarity := 0.9999;
   Self.StartCoordinate := [208, 712];
@@ -244,9 +242,6 @@ end;
 
 procedure TAgility.SetupGnome();
 begin
-  Self.CourseBoxes := [
-    [82, 81, 175, 192]
-  ];
   Self.RSW.Setup('agility');
   ItemFinder.Similarity := 0.9999;
   Self.StartCoordinate := [106, 104];
