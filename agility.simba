@@ -103,7 +103,6 @@ begin
     if currentPlatform.Box.Contains(RSGroundItems.MarkOfGrace.ClosestDot) then
       Exit(True);
 
-
     WriteLn 'Not on our platform';
     WriteLn RSGroundItems.MarkOfGrace.ClosestDot
   end;
