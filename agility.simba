@@ -28,6 +28,7 @@ type
     STARTING_COURSE,
     CROSSING_OBSTACLE,
     PICKING_UP_GRACE,
+    STUCK,
     UNPROCESSABLE_STATE
   );
 
@@ -45,6 +46,7 @@ type
     CityBox: TBox;
     CurrentPlatform: TPlatform;
     PreviousPlatform: TPlatform;
+    PlatformTimer: TCountdown;
     StartAction: String;
     StartObstacle: TRSObject;
     StartCoordinate: TPoint;
@@ -75,21 +77,35 @@ begin
     Exit(platform.Setup(box, obstacleCoord, actionText, durationNextObstacle, color, height));
 end;
 
+function TAgility.IsStuck(currentPlatform: TPlatform): Boolean;
+begin
+  if self.PlatformTimer.IsFinished() then
+    Exit(True);
+  if not (self.previousPlatform = currentPlatform) then
+  begin
+    previousPlatform := currentPlatform;
+    self.PlatformTimer.Restart();
+    Exit(False);
+  end;
+end;
+
 function TAgility.GetState(): EAgilityState;
 var
   currentPlatform: TPlatform;
 begin
-    currentPlatform := Self.GetCurrentPlatform();
-    if Self.IsMarkOfGraceOnPlatform(currentPlatform) then
-      Exit(EAgilityState.PICKING_UP_GRACE);
-    if Self.OnPlatform(currentPlatform) then
-      Exit(EAgilityState.CROSSING_OBSTACLE);
-    if Self.ReadyToStart() then
-      Exit(EAgilityState.STARTING_COURSE);
-    if Self.NotOnCourse() then
-      Exit(EAgilityState.RUNNING_TO_START);
+  currentPlatform := Self.GetCurrentPlatform();
+  if Self.IsStuck(currentPlatform) then
+    Exit(EAgilityState.STUCK);
+  if Self.IsMarkOfGraceOnPlatform(currentPlatform) then
+    Exit(EAgilityState.PICKING_UP_GRACE);
+  if Self.OnPlatform(currentPlatform) then
+    Exit(EAgilityState.CROSSING_OBSTACLE);
+  if Self.ReadyToStart() then
+    Exit(EAgilityState.STARTING_COURSE);
+  if Self.NotOnCourse() then
+    Exit(EAgilityState.RUNNING_TO_START);
 
-    Exit(EAgilityState.UNPROCESSABLE_STATE);
+  Exit(EAgilityState.UNPROCESSABLE_STATE);
 end;
 
 function TAgility.IsMarkOfGraceOnPlatform(currentPlatform: TPlatform): Boolean;
@@ -154,6 +170,13 @@ end;
 procedure TAgility.RunToEndOfPlatform();
 begin
   Self.RSW.WalkBlind(Self.GetCurrentPlatform().EndCoordinate, 3);
+end;
+
+function TAgility.HandleStuck(): Boolean;
+begin
+  WriteLn 'We are stuck';
+  Logout.ClickLogout();
+  TerminateScript();
 end;
 
 procedure TAgility.Setup(location: ECourse);
@@ -316,6 +339,7 @@ begin
           RSGroundItems.MarkOfGrace.Click(true, 1);
           Wait(2000, 2500);
         end;
+        EAgilityState.STUCK: self.HandleStuck();
         EAgilityState.UNPROCESSABLE_STATE:
         begin
           WriteLn 'this really is unprocessable';
@@ -335,7 +359,8 @@ begin
   RSGroundItems.Setup();
   Mouse.Speed := SRL.NormalRange(12, 21);
   Mouse.MissChance := 1;
-  Self.Setup(ECourse.GNOME_AGILITY);
+  Self.PlatformTimer.Init(60000); // 1 minute stuck timer
+  Self.Setup(ECourse.SEERS_AGILITY);
   Antiban.MaxZoom := 15;
   Antiban.MinZoom := 25;
 end;
