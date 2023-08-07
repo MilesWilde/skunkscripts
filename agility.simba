@@ -2,7 +2,7 @@
 {$IFDEF WINDOWS}
 {$DEFINE SCRIPT_GUI}
 {$ENDIF}
-{$UNDEF SCRIPT_REVISION}{$DEFINE SCRIPT_REVISION := '5'}
+{$UNDEF SCRIPT_REVISION}{$DEFINE SCRIPT_REVISION := '6'}
 {$include_once SRL-T/osr.simba}
 {$include_once WaspLib/osr.simba}
 {$I WaspLib/osr/walker/agility.graph}
@@ -359,7 +359,7 @@ begin
   RSGroundItems.Setup();
   Mouse.Speed := SRL.NormalRange(12, 21);
   Mouse.MissChance := 1;
-  Self.PlatformTimer.Init(60000); // 1 minute stuck timer
+  Self.PlatformTimer.Init(120000); // 2 minute stuck timer
   Self.Setup(ECourse.SEERS_AGILITY);
   Antiban.MaxZoom := 15;
   Antiban.MinZoom := 25;
