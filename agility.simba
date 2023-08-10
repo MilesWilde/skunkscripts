@@ -2,7 +2,7 @@
 {$IFDEF WINDOWS}
 {$DEFINE SCRIPT_GUI}
 {$ENDIF}
-{$UNDEF SCRIPT_REVISION}{$DEFINE SCRIPT_REVISION := '6'}
+{$UNDEF SCRIPT_REVISION}{$DEFINE SCRIPT_REVISION := '7'}
 {$include_once SRL-T/osr.simba}
 {$include_once WaspLib/osr.simba}
 {$I WaspLib/osr/walker/agility.graph}
@@ -51,7 +51,11 @@ type
     StartObstacle: TRSObject;
     StartCoordinate: TPoint;
     MarkOfGraceCoordinate: TPoint;
+    Course: ECourse;
   end;
+
+//const
+//  SEERS_LADDER_COLOR: TCTS2Color :=
 
 function TPlatform.Setup(box: TBox; obstacleCoord: TPoint; actionText: String; durationNextObstacle: Int32; color: TCTS2Color; height: Int32): TPlatform;
 begin
@@ -77,6 +81,16 @@ begin
     Exit(platform.Setup(box, obstacleCoord, actionText, durationNextObstacle, color, height));
 end;
 
+function TAgility.IsStuckSeers(currentPlatform: TPlatform): Boolean;
+var
+  ladderTPA: TPointArray;
+begin
+  //SRL.FindColors(ladderTPA, SEERS_LADDER_COLOR, Mainscreen.Bounds());
+  // we're upstairs
+  if ladderTPA.Len() > 500 then
+    Exit(True);
+end;
+
 function TAgility.IsStuck(currentPlatform: TPlatform): Boolean;
 begin
   if self.PlatformTimer.IsFinished() then
@@ -86,6 +100,12 @@ begin
     previousPlatform := currentPlatform;
     self.PlatformTimer.Restart();
     Exit(False);
+  end;
+
+  // we could try something like
+  // if we're on seers and ladder color of the ladder nearby then we are donezo? could test a few laps with it to see if it triggers
+  case self.Course of
+    ECourse.SEERS_AGILITY: self.IsStuckSeers(currentPlatform);
   end;
 end;
 
@@ -172,8 +192,18 @@ begin
   Self.RSW.WalkBlind(Self.GetCurrentPlatform().EndCoordinate, 3);
 end;
 
+function TAgility.HandleStuckSeers(): Boolean;
+//var
+//
+begin
+
+end;
+
 function TAgility.HandleStuck(): Boolean;
 begin
+  //case self.Course of
+  //  ECourse.SEERS_AGILITY:
+  //end;
   WriteLn 'We are stuck';
   Logout.ClickLogout();
   TerminateScript();
@@ -181,6 +211,7 @@ end;
 
 procedure TAgility.Setup(location: ECourse);
 begin
+  self.course := location;
   case location of
     ECourse.GNOME_AGILITY: Self.SetupGnome();
     ECourse.VARROCK_AGILITY: Self.SetupVarrock();
