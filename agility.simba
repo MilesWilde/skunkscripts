@@ -36,7 +36,8 @@ type
     GNOME_AGILITY,
     VARROCK_AGILITY,
     CANIFIS_AGILITY,
-    SEERS_AGILITY
+    SEERS_AGILITY,
+    RELLEKKA_AGILITY
   );
 
   TAgility = record (TBaseBankScript)
@@ -54,8 +55,9 @@ type
     Course: ECourse;
   end;
 
-//const
-//  SEERS_LADDER_COLOR: TCTS2Color :=
+const
+  SEERS_LADDER_COLOR: TCTS2Color := CTS2(798292, 8, 0.49, 3.41);
+  BLACK_COLOR: TCTS2Color := CTS2(0, 1, 0.01, 0.01);
 
 function TPlatform.Setup(box: TBox; obstacleCoord: TPoint; actionText: String; durationNextObstacle: Int32; color: TCTS2Color; height: Int32): TPlatform;
 begin
@@ -83,11 +85,33 @@ end;
 
 function TAgility.IsStuckSeers(currentPlatform: TPlatform): Boolean;
 var
-  ladderTPA: TPointArray;
+  blackTPA: TPointArray;
+  blackClusters: T2DPointArray;
+  upstairsBox: TBox := [796, 1326, 828, 1340];
+  smallBlackClusters: T2DPointArray;
+  smallestBlackCluster: TPointArray;
+  blackPoint: TPoint;
+  lotsOfBlackPoints: Boolean;
+  playerMMBox: TBox := Box(Minimap.Center, 6, 6);
+  allBlackContained: Boolean;
 begin
-  //SRL.FindColors(ladderTPA, SEERS_LADDER_COLOR, Mainscreen.Bounds());
-  // we're upstairs
-  if ladderTPA.Len() > 500 then
+  if self.rsw.GetMyPos().InBox(upstairsBox)
+    then Exit(True);
+
+  SRL.FindColors(blackTPA, BLACK_COLOR, Minimap.Bounds());
+  lotsOfBlackPoints := blackTPA.len() >= 10000;
+
+  allBlackContained := True;
+  blackClusters := blackTPA.Cluster(2);
+  blackClusters := blackClusters.SortFrom(Minimap.Center);
+  blackClusters.FilterSize(2, 8);
+
+  smallestBlackCluster := blackClusters[0];
+  for blackPoint in smallestBlackCluster do
+    if not blackPoint.InBox(playerMMBox) then
+      allBlackContained := False;
+
+  if allBlackContained and lotsOfBlackPoints then
     Exit(True);
 end;
 
@@ -99,13 +123,12 @@ begin
   begin
     previousPlatform := currentPlatform;
     self.PlatformTimer.Restart();
-    Exit(False);
   end;
 
   // we could try something like
   // if we're on seers and ladder color of the ladder nearby then we are donezo? could test a few laps with it to see if it triggers
   case self.Course of
-    ECourse.SEERS_AGILITY: self.IsStuckSeers(currentPlatform);
+    ECourse.SEERS_AGILITY: Result := self.IsStuckSeers(currentPlatform);
   end;
 end;
 
@@ -172,19 +195,20 @@ end;
 function TAgility.GetCurrentPlatform(): TPlatform;
 var
   platform: TPlatform;
+  myPos: TPoint := Self.RSW.GetMyPos();
 begin
   for platform in Self.Platforms do
   begin
-    if platform.Box.Contains(Self.RSW.GetMyPos()) then
+    if platform.Box.Contains(myPos) then
       Exit(platform);
   end;
   WriteLn 'Not on a platform: ';
-  WriteLn Self.RSW.GetMyPos();
+  WriteLn myPos;
 end;
 
 procedure TAgility.RunToStart();
 begin
-  Self.RSW.WalkBlind(Self.StartCoordinate, 10);
+  Self.RSW.WalkBlind(Self.StartCoordinate, 20);
 end;
 
 procedure TAgility.RunToEndOfPlatform();
@@ -193,20 +217,74 @@ begin
 end;
 
 function TAgility.HandleStuckSeers(): Boolean;
-//var
-//
+var
+  blackTPA: TPointArray;
+  blackClusters: T2DPointArray;
+  upstairsBox: TBox := [796, 1326, 828, 1340];
+  smallBlackClusters: T2DPointArray;
+  smallestBlackCluster: TPointArray;
+  blackPoint: TPoint;
+  lotsOfBlackPoints: Boolean;
+  playerMMBox: TBox := Box(Minimap.Center, 6, 6);
+  allBlackContained: Boolean;
+  ladderMS: TPoint;
 begin
+  if self.rsw.GetMyPos().InBox(upstairsBox)
+    then Exit(True);
 
+  SRL.FindColors(blackTPA, BLACK_COLOR, Minimap.Bounds());
+  lotsOfBlackPoints := blackTPA.len() >= 10000;
+
+  allBlackContained := True;
+  blackClusters := blackTPA.Cluster(2);
+  blackClusters := blackClusters.SortFrom(Minimap.Center);
+  blackClusters.FilterSize(2, 8);
+
+  smallestBlackCluster := blackClusters[0];
+  for blackPoint in smallestBlackCluster do
+    if not blackPoint.InBox(playerMMBox) then
+      allBlackContained := False;
+
+  if not(allBlackContained and lotsOfBlackPoints) then
+    Exit(False);
+
+  // we are upstairs, find ladder on minimap and convert to mainscreen
+  for 1 to 5 do
+  begin
+    ladderMS := Minimap.PointToMs(smallestBlackCluster.Mean());
+
+    Mouse.Move(ladderMS);
+    if Mainscreen.IsUpText('mb-do') then
+    begin
+      Mouse.Click(MOUSE_LEFT);
+      if Mainscreen.DidRedClick(400) then
+      begin
+        Wait(2500, 4000);
+        Exit(True);
+      end;
+    end;
+
+    Antiban.RandomRotate();
+  end;
+
+  Exit(False);
 end;
 
 function TAgility.HandleStuck(): Boolean;
+var
+  handled: Boolean;
 begin
-  //case self.Course of
-  //  ECourse.SEERS_AGILITY:
-  //end;
-  WriteLn 'We are stuck';
-  Logout.ClickLogout();
-  TerminateScript();
+  case self.Course of
+    ECourse.SEERS_AGILITY: handled := self.HandleStuckSeers();
+  end;
+
+  if not handled then
+  begin
+    WriteLn 'We are stuck and couldnt handle it. Send this pic to skunkworks:';
+    self.rsw.DebugPosition();
+    Logout.ClickLogout();
+    TerminateScript();
+  end;
 end;
 
 procedure TAgility.Setup(location: ECourse);
@@ -217,9 +295,34 @@ begin
     ECourse.VARROCK_AGILITY: Self.SetupVarrock();
     ECourse.CANIFIS_AGILITY: Self.SetupCanifis();
     ECourse.SEERS_AGILITY: Self.SetupSeers();
+    ECourse.RELLEKKA_AGILITY: Self.SetupRellekka();
   else
     raise 'Location provided not registered in cases';
   end;
+end;
+
+procedure TAgility.SetupRellekka();
+begin
+  Self.RSW.Setup('agility', 9);
+  Self.RSW.WebGraph := WaspAgility;
+  Self.CityBox := [1588, 1, 1997, 396];
+
+  ItemFinder.Similarity := 0.9999;
+  Self.StartCoordinate := [1714, 172];
+  Self.StartAction := 'Climb';
+  Self.Platforms := [
+    SetupPlatform([1355, 689, 1373, 708], [1353, 714], 'Leap', 5000, [], 4),
+    SetupPlatform([1330, 719, 1357, 766], [1357, 767], 'Cross', 7500, []),
+    SetupPlatform([1372, 778, 1388, 798], [1386, 772], 'Leap', 9500, [], 1),
+    SetupPlatform([1420, 782, 1444, 802], [1442, 778], 'Hurdle', 4000, [], 5),
+    SetupPlatform([1436, 746, 1468, 768], [1455, 746], 'Cross', 3800),
+    SetupPlatform([1484, 670, 1518, 736], [1485, 696], 'Jump', 4000, [], 5)
+  ];
+
+  Self.StartObstacle.Setup(1, 5, [[1715, 181]]);
+  Self.StartObstacle.Setup([Self.StartAction]);
+  Self.StartObstacle.Finder.Colors += CTS2(3033435, 1, 0.16, 0.94);
+  Self.StartObstacle.Finder.Colors += CTS2(5263456, 5, 3.70, 0.16);
 end;
 
 procedure TAgility.SetupSeers();
@@ -230,7 +333,7 @@ begin
 
   ItemFinder.Similarity := 0.9999;
   Self.StartCoordinate := [494, 1100];
-  Self.StartAction := 'Climb-up';
+  Self.StartAction := 'p Wall';
   Self.Platforms := [
     SetupPlatform([797, 1107, 837, 1140], [796, 1122], 'Jump', 5000, [], 4),
     SetupPlatform([996, 1106, 1040, 1154], [1022, 1144], 'Cross', 7500, CTS2(4349291, 5, 0.10, 0.22)),
@@ -350,9 +453,7 @@ begin
             WriteLn 'Starting course';
             WriteLn Self.RSW.GetMyPos();
             TotalActions += 1;
-            if Self.StartObstacle.Find(startATPA) then
-              Self.StartObstacle.WalkClick(true, 1)
-            else
+            if not Self.StartObstacle.WalkClick(true, 3) then
               Self.RSW.WebWalk(Self.StartCoordinate, 50);
 
             Wait(7500, 8500);
