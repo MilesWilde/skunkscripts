@@ -53,6 +53,9 @@ type
     StartCoordinate: TPoint;
     MarkOfGraceCoordinate: TPoint;
     Course: ECourse;
+    PreferredAngle: record
+      min, max: Int32;
+    end;
   end;
 
 const
@@ -83,6 +86,32 @@ begin
     Exit(platform.Setup(box, obstacleCoord, actionText, durationNextObstacle, color, height));
 end;
 
+procedure TAgility.RotateToPreferredAngle();
+var
+  minMaxAvg: Int32 := Floor((Self.PreferredAngle.Min + Self.PreferredAngle.Max) div 2);
+  preferredAngle: Int32 := SRL.SkewedRand(minMaxAvg, Self.PreferredAngle.Min, Self.PreferredAngle.Max);
+begin
+  if preferredAngle < 0 then
+    preferredAngle := preferredAngle + 360;
+
+  Minimap.SetCompassAngle(preferredAngle);
+end;
+
+function TAgility.InPreferredRange(): Boolean;
+var
+  positiveAngle: Int32;
+  currentCompassAngle: Int32;
+begin
+  if (Self.PreferredAngle.Min < 0) then
+  begin
+    positiveAngle := Self.PreferredAngle.Min + 360;
+    currentCompassAngle := Floor(Minimap.GetCompassAngle(True));
+
+    Exit(InRange(currentCompassAngle, positiveAngle, 360)
+      or InRange(currentCompassAngle, 0, Self.PreferredAngle.Max));
+  end;
+end;
+
 function TAgility.IsStuckSeers(currentPlatform: TPlatform): Boolean;
 var
   blackTPA: TPointArray;
@@ -101,10 +130,14 @@ begin
   SRL.FindColors(blackTPA, BLACK_COLOR, Minimap.Bounds());
   lotsOfBlackPoints := blackTPA.len() >= 10000;
 
+  //temp setting
   allBlackContained := True;
+
   blackClusters := blackTPA.Cluster(2);
   blackClusters := blackClusters.SortFrom(Minimap.Center);
   blackClusters.FilterSize(2, 8);
+  if (blackClusters.Len() = 0)
+    then Exit(False);
 
   smallestBlackCluster := blackClusters[0];
   for blackPoint in smallestBlackCluster do
@@ -202,13 +235,34 @@ begin
     if platform.Box.Contains(myPos) then
       Exit(platform);
   end;
-  WriteLn 'Not on a platform: ';
-  WriteLn myPos;
 end;
 
-procedure TAgility.RunToStart();
+procedure TAgility.StartCourse();
+var
+  startATPA: T2DPointArray;
 begin
-  Self.RSW.WalkBlind(Self.StartCoordinate, 20);
+  if (self.TotalActions mod Random(4, 5) = 0) then
+    self.RotateToPreferredAngle();
+  if not Self.StartObstacle.Find(startATPA) then
+  begin
+    Self.RSW.WebWalk(Self.StartCoordinate, 20);
+    if not self.InPreferredRange() then
+      self.RotateToPreferredAngle();
+  end
+  else
+  begin
+    Mouse.Move(startATPA[0].Mean());
+    if Mainscreen.IsUpText(self.StartAction) then
+    begin
+      Mouse.Click(MOUSE_LEFT);
+      if Mainscreen.DidRedClick()
+        and WaitUntil((self.GetCurrentPlatform() = self.Platforms[0]), 200, 12000) then
+      begin
+        TotalActions += 1;
+        WaitUntil(not SRL.IsAnimating(Mainscreen.GetPlayerBox(), 100, 300), 300, 3000);
+      end;
+    end;
+  end;
 end;
 
 procedure TAgility.RunToEndOfPlatform();
@@ -306,9 +360,9 @@ begin
   Self.RSW.Setup('agility', 9);
   Self.RSW.WebGraph := WaspAgility;
   Self.CityBox := [1588, 1, 1997, 396];
-
+  Self.PreferredAngle := [135, 225];
   ItemFinder.Similarity := 0.9999;
-  Self.StartCoordinate := [1714, 172];
+  Self.StartCoordinate := [1744, 172];
   Self.StartAction := 'Climb';
   Self.Platforms := [
     SetupPlatform([1355, 689, 1373, 708], [1353, 714], 'Leap', 5000, [], 4),
@@ -322,7 +376,6 @@ begin
   Self.StartObstacle.Setup(1, 5, [[1715, 181]]);
   Self.StartObstacle.Setup([Self.StartAction]);
   Self.StartObstacle.Finder.Colors += CTS2(3033435, 1, 0.16, 0.94);
-  Self.StartObstacle.Finder.Colors += CTS2(5263456, 5, 3.70, 0.16);
 end;
 
 procedure TAgility.SetupSeers();
@@ -330,21 +383,21 @@ begin
   Self.RSW.Setup('agility', 9);
   Self.RSW.WebGraph := WaspAgility;
   Self.CityBox := [289, 994, 588, 1300];
-
+  Self.PreferredAngle := [-45, 45];
   ItemFinder.Similarity := 0.9999;
-  Self.StartCoordinate := [494, 1100];
+  Self.StartCoordinate := [494, 1120];
   Self.StartAction := 'p Wall';
   Self.Platforms := [
     SetupPlatform([797, 1107, 837, 1140], [796, 1122], 'Jump', 5000, [], 4),
     SetupPlatform([996, 1106, 1040, 1154], [1022, 1144], 'Cross', 7500, CTS2(4349291, 5, 0.10, 0.22)),
     SetupPlatform([1019, 1169, 1050, 1198], [1022, 1196], 'Jump', 4000, [], 6),
-    SetupPlatform([709, 1188, 785, 1224], [722, 1225], 'Jump', 4000, [], 5),
+    SetupPlatform([709, 1188, 785, 1224], [722, 1223], 'Jump', 4000, [], 5),
     SetupPlatform([942, 1234, 997, 1266], [994, 1246], 'Jump', 3800)
   ];
 
-  Self.StartObstacle.Setup(7, [[493, 1085]]);
+  Self.StartObstacle.Setup(9, [[493, 1085]]);
   Self.StartObstacle.Setup([Self.StartAction]);
-  Self.StartObstacle.Filter.Finder := False;
+  Self.StartObstacle.Finder.Colors += CTS2(9870489, 2, 1.22, 0.42);
 end;
 
 procedure TAgility.SetupCanifis();
@@ -352,7 +405,7 @@ begin
   Self.RSW.Setup('agility', 9);
   Self.RSW.WebGraph := WaspAgility;
   Self.CityBox := [0, 894, 289, 1183];
-
+  Self.PreferredAngle := [-45, 45];
   ItemFinder.Similarity := 0.9999;
   Self.StartCoordinate := [197, 1036];
   Self.StartAction := 'Climb';
@@ -376,6 +429,7 @@ begin
   Self.RSW.Setup('agility',  9);
   ItemFinder.Similarity := 0.9999;
   Self.StartCoordinate := [208, 712];
+  Self.PreferredAngle := [225, 315];
   Self.RSW.WebGraph := WaspAgility;
   Self.CityBox := [0, 574, 360, 893];
   Self.StartAction := 'Climb';
@@ -400,6 +454,7 @@ begin
   Self.RSW.Setup('agility');
   ItemFinder.Similarity := 0.9999;
   Self.StartCoordinate := [106, 104];
+  Self.PreferredAngle := [-45, 45];
   Self.RSW.WebGraph := WaspAgility;
   Self.CityBox := [82, 81, 175, 192];
   Self.StartAction := 'Walk-across';
@@ -427,6 +482,11 @@ begin
   //Self.OnBreaking := @ OnBreakingTask;
 end;
 
+procedure TAntiban.RandomPOVTask(); override;
+begin
+  Self.AdjustZoom();
+end;
+
 procedure TAntiban.Setup(); override;
 begin
   Self.Skills := [ERSSkill.TOTAL, ERSSkill.AGILITY];
@@ -435,11 +495,11 @@ begin
   inherited;
 end;
 
+
 procedure TAgility.Run(MaxActions: Int32; MaxTime: Int64);
 var
   platform: TPlatform;
   graceATPA: T2DPointArray;
-  startATPA: T2DPointArray;
 begin
   Self.Init(MaxActions, MaxTime);
   repeat
@@ -448,22 +508,15 @@ begin
       Self.SetAction(ToStr(State));
       RSGroundItems.MarkOfGrace.Find(graceATPA);
       case State of
-        EAgilityState.RUNNING_TO_START, EAgilityState.STARTING_COURSE:
-          begin
-            WriteLn 'Starting course';
-            WriteLn Self.RSW.GetMyPos();
-            TotalActions += 1;
-            if not Self.StartObstacle.WalkClick(true, 3) then
-              Self.RSW.WebWalk(Self.StartCoordinate, 50);
-
-            Wait(7500, 8500);
-          end;
+        EAgilityState.RUNNING_TO_START, EAgilityState.STARTING_COURSE: self.StartCourse();
         EAgilityState.CROSSING_OBSTACLE:
         begin
-          WriteLn Self.RSW.GetMyPos();
           platform := Self.GetCurrentPlatform();
           platform.Obstacle.WalkClick(true, 1);
-          Wait(platform.DurationNextObstacle, platform.DurationNextObstacle + 500);
+          if WaitUntil(not (self.GetCurrentPlatform() = platform), 200, 12000) then
+          begin
+            WaitUntil(not SRL.IsAnimating(Mainscreen.GetPlayerBox(), 100, 300), 300, 3000);
+          end;
         end;
         EAgilityState.PICKING_UP_GRACE:
         begin
@@ -477,7 +530,11 @@ begin
           WriteLn 'this really is unprocessable';
         end;
       end;
-      Self.DoAntiban(True, False);
+
+      if SRL.Dice(4) then
+      begin
+        Self.DoAntiban(True, False);
+      end;
     except
       WriteLn GetExceptionMessage();
       Wait (5000);
