@@ -8,7 +8,7 @@
 {$I WaspLib/osr/walker/agility.graph}
 
 begin
-  Login.PlayerIndex := 0;
+  Login.PlayerIndex := 3;
 end;
 
 type
@@ -365,11 +365,11 @@ begin
   Self.StartCoordinate := [1744, 172];
   Self.StartAction := 'Climb';
   Self.Platforms := [
-    SetupPlatform([1355, 689, 1373, 708], [1353, 714], 'Leap', 5000, [], 4),
-    SetupPlatform([1330, 719, 1357, 766], [1357, 767], 'Cross', 7500, []),
+    SetupPlatform([1355, 689, 1373, 708], [1351, 714], 'Leap', 5000, [], 4),
+    SetupPlatform([1330, 719, 1357, 766], [1357, 767], 'Cross', 7500, CTS2(4743540, 13, 0.03, 0.07)),
     SetupPlatform([1372, 778, 1388, 798], [1386, 772], 'Leap', 9500, [], 1),
     SetupPlatform([1420, 782, 1444, 802], [1442, 778], 'Hurdle', 4000, [], 5),
-    SetupPlatform([1436, 746, 1468, 768], [1455, 746], 'Cross', 3800),
+    SetupPlatform([1436, 746, 1468, 768], [1455, 744], 'Cross', 3800),
     SetupPlatform([1484, 670, 1518, 736], [1485, 696], 'Jump', 4000, [], 5)
   ];
 
@@ -477,8 +477,8 @@ procedure TAntiban.SetupBreaks(); override;
 begin
   if Self.Breaks <> [] then
     Exit;
-  //Self.AddBreak(30 * ONE_MINUTE, 1 * ONE_MINUTE, 0.33, 0.01);
-  //Self.AddBreak(45 * ONE_MINUTE, 2 * ONE_MINUTE, 0.33, 0.15);
+  Self.AddBreak(30 * ONE_MINUTE, 1 * ONE_MINUTE, 0.33, 0.01);
+  Self.AddBreak(45 * ONE_MINUTE, 2 * ONE_MINUTE, 0.33, 0.15);
   //Self.OnBreaking := @ OnBreakingTask;
 end;
 
@@ -513,7 +513,8 @@ begin
         begin
           platform := Self.GetCurrentPlatform();
           platform.Obstacle.WalkClick(true, 1);
-          if WaitUntil(not (self.GetCurrentPlatform() = platform), 200, 12000) then
+          if Mainscreen.DidRedClick()
+          and WaitUntil(not (self.GetCurrentPlatform() = platform), 200, 12000) then
           begin
             WaitUntil(not SRL.IsAnimating(Mainscreen.GetPlayerBox(), 100, 300), 300, 3000);
           end;
@@ -533,7 +534,9 @@ begin
 
       if SRL.Dice(4) then
       begin
+        self.PlatformTimer.Pause();
         Self.DoAntiban(True, False);
+        self.PlatformTimer.Resume();
       end;
     except
       WriteLn GetExceptionMessage();
@@ -549,7 +552,7 @@ begin
   Mouse.Speed := SRL.NormalRange(12, 21);
   Mouse.MissChance := 1;
   Self.PlatformTimer.Init(120000); // 2 minute stuck timer
-  Self.Setup(ECourse.SEERS_AGILITY);
+  Self.Setup(ECourse.RELLEKKA_AGILITY);
   Antiban.MaxZoom := 15;
   Antiban.MinZoom := 25;
 end;
