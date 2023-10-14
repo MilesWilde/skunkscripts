@@ -8,7 +8,7 @@
 {$I WaspLib/osr/walker/agility.graph}
 
 begin
-  Login.PlayerIndex := 3;
+  Login.PlayerIndex := 4;
 end;
 
 type
@@ -29,6 +29,7 @@ type
     CROSSING_OBSTACLE,
     PICKING_UP_GRACE,
     STUCK,
+    EAT_FOOD,
     UNPROCESSABLE_STATE
   );
 
@@ -53,6 +54,7 @@ type
     StartCoordinate: TPoint;
     MarkOfGraceCoordinate: TPoint;
     Course: ECourse;
+    EatPercent: Int32;
     PreferredAngle: record
       min, max: Int32;
     end;
@@ -170,6 +172,8 @@ var
   currentPlatform: TPlatform;
 begin
   currentPlatform := Self.GetCurrentPlatform();
+  if (Minimap.GetHPPercent() < self.EatPercent) and Inventory.ContainsConsumable(FOOD_CONSUMABLE) then
+    Exit(EAgilityState.EAT_FOOD);
   if Self.IsStuck(currentPlatform) then
     Exit(EAgilityState.STUCK);
   if Self.IsMarkOfGraceOnPlatform(currentPlatform) then
@@ -410,8 +414,8 @@ begin
   Self.StartCoordinate := [197, 1036];
   Self.StartAction := 'Climb';
   Self.Platforms := [
-    SetupPlatform([740, 884, 772, 930], [750, 886], 'Jump', 5000, [], 7),
-    SetupPlatform([704, 849, 743, 868], [712, 861], 'Jump', 5500, [], 5),
+    SetupPlatform([740, 884, 772, 930], [750, 888], 'Jump', 5000, [], 7),
+    SetupPlatform([704, 849, 743, 868], [714, 861], 'Jump', 5500, [], 5),
     SetupPlatform([660, 857, 700, 889], [665, 883], 'Jump', 4000),
     SetupPlatform([1194, 1178, 1223, 1218], [1213, 1214], 'Jump', 4000),
     SetupPlatform([631, 929, 664, 957], [646, 946], 'Pole-vault', 7500, CTS2(3037806, 6, 0.08, 0.32)),
@@ -429,16 +433,16 @@ begin
   Self.RSW.Setup('agility',  9);
   ItemFinder.Similarity := 0.9999;
   Self.StartCoordinate := [208, 712];
-  Self.PreferredAngle := [225, 315];
+  Self.PreferredAngle := [45, 135];
   Self.RSW.WebGraph := WaspAgility;
   Self.CityBox := [0, 574, 360, 893];
   Self.StartAction := 'Climb';
   Self.Platforms := [
-    SetupPlatform([559, 662, 595, 703], [565, 684], 'Cross', 6500),
-    SetupPlatform([516, 660, 549, 690], [513, 675], 'Leap', 5500),
-    SetupPlatform([844, 676, 867, 681], [840, 679], 'Balance', 10000),
+    SetupPlatform([559, 662, 595, 703], [567, 684], 'Cross', 6500),
+    SetupPlatform([516, 660, 549, 690], [515, 675], 'Leap', 5500),
+    SetupPlatform([844, 676, 867, 681], [842, 679], 'Balance', 10000),
     SetupPlatform([481, 713, 509, 733], [484, 736], 'Leap', 3000),
-    SetupPlatform([465, 724, 549, 763], [550, 737], 'Leap', 7500),
+    SetupPlatform([465, 724, 549, 780], [550, 737], 'Leap', 7500),
     SetupPlatform([585, 727, 645, 771], [647, 730], 'Leap', 5500),
     SetupPlatform([655, 704, 677, 731], [658, 704], 'Hurdle', 4500),
     SetupPlatform([657, 675, 677, 702], [660, 675], 'Jump-off', 4000)
@@ -526,6 +530,10 @@ begin
           Wait(2000, 2500);
         end;
         EAgilityState.STUCK: self.HandleStuck();
+        EAgilityState.EAT_FOOD:
+        begin
+          Inventory.Consume(ERSConsumable.FOOD_CONSUMABLE);
+        end;
         EAgilityState.UNPROCESSABLE_STATE:
         begin
           WriteLn 'this really is unprocessable';
@@ -545,14 +553,15 @@ begin
   until Self.ShouldStop();
 end;
 
-procedure TAgility.Init(MaxActions: Int32; MaxTime: Int64); override;
+procedure TAgility.Init(maxActions: UInt32; maxTime: UInt64); override;
 begin
   inherited;
   RSGroundItems.Setup();
   Mouse.Speed := SRL.NormalRange(12, 21);
   Mouse.MissChance := 1;
+  Self.EatPercent := 50;
   Self.PlatformTimer.Init(120000); // 2 minute stuck timer
-  Self.Setup(ECourse.RELLEKKA_AGILITY);
+  Self.Setup(ECourse.CANIFIS_AGILITY);
   Antiban.MaxZoom := 15;
   Antiban.MinZoom := 25;
 end;
