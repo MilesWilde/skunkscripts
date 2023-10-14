@@ -2,13 +2,13 @@
 {$IFDEF WINDOWS}
 {$DEFINE SCRIPT_GUI}
 {$ENDIF}
-{$UNDEF SCRIPT_REVISION}{$DEFINE SCRIPT_REVISION := '9'}
+{$UNDEF SCRIPT_REVISION}{$DEFINE SCRIPT_REVISION := '10'}
 {$include_once SRL-T/osr.simba}
 {$include_once WaspLib/osr.simba}
 {$I WaspLib/osr/walker/agility.graph}
 
 begin
-  Login.PlayerIndex := 4;
+  Login.PlayerIndex := 0;
 end;
 
 type
