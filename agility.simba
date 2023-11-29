@@ -8,7 +8,7 @@
 {$I WaspLib/osr/walker/agility.graph}
 
 begin
-  Login.PlayerIndex := 0;
+  Login.PlayerIndex := 3;
 end;
 
 type
@@ -632,7 +632,7 @@ begin
         EAgilityState.STUCK: self.HandleStuck();
         EAgilityState.EAT_FOOD:
         begin
-          Inventory.Consume(ERSConsumable.FOOD_CONSUMABLE);
+          Inventory.Consume(ERSConsumable.FOOD);
         end;
         EAgilityState.UNPROCESSABLE_STATE:
         begin
