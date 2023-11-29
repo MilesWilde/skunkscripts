@@ -193,7 +193,7 @@ var
   currentPlatform: TPlatform;
 begin
   currentPlatform := Self.GetCurrentPlatform();
-  if (Minimap.GetHPPercent() < self.EatPercent) and Inventory.ContainsConsumable(FOOD_CONSUMABLE) then
+  if (Minimap.GetHPPercent() < self.EatPercent) and Inventory.ContainsConsumable(ERSConsumable.FOOD) then
     Exit(EAgilityState.EAT_FOOD);
   if Self.IsStuck(currentPlatform) then
     Exit(EAgilityState.STUCK);
