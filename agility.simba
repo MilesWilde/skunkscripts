@@ -636,7 +636,7 @@ begin
         end;
         EAgilityState.UNPROCESSABLE_STATE:
         begin
-          WriteLn('this really is unprocessable: ', self.rsw.GetMyPos());
+          WriteLn('Unprocessable state. If the script is performing unexpectedly, go to https://waspscripts.com/scripts/skunkagility-by-skunkworks and ensure properly configured', self.rsw.GetMyPos());
         end;
       end;
 
