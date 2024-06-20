@@ -8,7 +8,7 @@
 {$I WaspLib/osr/walker/agility.graph}
 
 begin
-  Login.PlayerIndex := 2;
+  Login.PlayerIndex := 0;
 end;
 
 type
@@ -97,6 +97,24 @@ begin
 
   Self.RotateWithinAngles(Floor(angleTo - randomness), Floor(angleTo + randomness));
 end;
+
+procedure ForceSaveScreenshotObj(o: TRSObject);
+var
+  bmp: TMufasaBitmap;
+  path: String;
+begin
+  writeln('forcesavescreenshot terminate');
+
+  bmp.FromClient();
+  o.Draw(bmp);
+  bmp.HideAccountDetails();
+  path := GetScreenshotPath('terminated' + DIRECTORYSEPARATOR +'screenshot');
+
+  bmp.SaveToFile(path);
+  bmp.Free();
+  writeln('forcesavescreenshot terminated');
+end;
+
 
 // AGILITY
 
@@ -434,6 +452,7 @@ end;
 function TAgility.HandleStuck(): Boolean;
 var
   handled: Boolean;
+  platform: TPlatform;
 begin
   case self.Course of
     ECourse.SEERS_AGILITY: handled := self.HandleStuckSeers();
@@ -441,9 +460,9 @@ begin
 
   if not handled then
   begin
-    WriteLn 'We are stuck and couldnt handle it. Send this pic to skunkworks:';
-    // Debug(self.StartObstacle);
-    self.rsw.DebugPosition();
+    WriteLn 'We are stuck and couldnt handle it. Please send this to skunkworks:';
+    platform := self.GetCurrentPlatform();
+    ForceSaveScreenshotObj(platform.Obstacle);
     Logout.ClickLogout();
     TerminateScript();
   end;
@@ -662,7 +681,6 @@ begin
           if not Mainscreen.Locate(obstaclePointMS, platform.Obstacle.UpText, 5, 3) then
           begin
             Minimap.FacePoint(obstaclePointMM, 45);
-            Debug(platform.Obstacle);
             WriteLn('Couldnt find obstacle, trying again');
             platform.Obstacle.WalkHover(1, true);
             continue;
