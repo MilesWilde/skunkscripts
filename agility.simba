@@ -8,7 +8,7 @@
 {$I WaspLib/osr/walker/agility.graph}
 
 begin
-  Login.PlayerIndex := 0;
+  Login.PlayerIndex := 2;
 end;
 
 type
@@ -66,6 +66,39 @@ const
   SEERS_LADDER_COLOR: TCTS2Color := CTS2(798292, 8, 0.49, 3.41);
   BLACK_COLOR: TCTS2Color := CTS2(0, 1, 0.01, 0.01);
 
+
+// SRL STUFF
+
+procedure TRSMinimap.RotateWithinAngles(min, max: Int32);
+var
+  minMaxAvg: Int32 := Floor((min + max) div 2);
+  preferredAngle: Int32 := SRL.SkewedRand(minMaxAvg, min, max);
+begin
+  if preferredAngle < 0 then
+    preferredAngle := preferredAngle + 360;
+
+  Minimap.SetCompassAngle(preferredAngle);
+end;
+
+function TRSMinimap.AngleTo(p: TPoint): Double;
+begin
+  if not Minimap.IsPointOn(p) then
+    exit(-1);
+
+  Result := 540 - Self.Center().AngleBetween(p);
+end;
+
+function TRSMinimap.FacePoint(p: TPoint; randomness: Int32 = 0): Boolean; override;
+var
+  angleTo: Double := self.AngleTo(p);
+begin
+  if (angleTo = -1) then
+    Exit;
+
+  Self.RotateWithinAngles(Floor(angleTo - randomness), Floor(angleTo + randomness));
+end;
+
+// AGILITY
 
 function TPlatform.Setup(box: TBox; obstacleCoord: TPoint; actionText: String; durationNextObstacle: Int32; colors: array of TCTS2Color; height: Int32; width: Int32; startPoint: TPoint; endPoint: TPoint): TPlatform;
 var
@@ -592,6 +625,16 @@ begin
 end;
 
 
+function TRSMainscreen.Locate(p: TPoint; uptext: TStringArray; randomDistance: Int32 = 0; attempts: Int32 = 0): Boolean;
+var
+  i: Int32;
+begin
+  Mouse.Move(p.Offset(Random(-randomDistance, randomDistance), Random(-randomDistance, randomDistance)));
+  for i := 0 to attempts do
+    if Mainscreen.IsUpText(uptext) then
+      Exit(True);
+end;
+
 procedure TAgility.Run(MaxActions: Int32; MaxTime: Int64);
 var
   platform: TPlatform;
@@ -599,6 +642,8 @@ var
   nextPlatform: TPlatform;
   nextObstacle: TRSObject;
   nextObstacleCoordinate: TPoint;
+  obstaclePointWorld: TPoint;
+  obstaclePointMM, obstaclePointMS: TPoint;
 begin
   Self.Init(MaxActions, MaxTime);
   repeat
@@ -611,14 +656,29 @@ begin
         EAgilityState.CROSSING_OBSTACLE:
         begin
           platform := Self.GetCurrentPlatform();
-          //Debug(platform.Obstacle);
-          platform.Obstacle.WalkClick(true, 1);
+          obstaclePointWorld := platform.Obstacle.Coordinates[0];
+          obstaclePointMM := self.rsw.WorldToMM(obstaclePointWorld);
+          obstaclePointMS := Minimap.PointToMS(obstaclePointMM);
+          if not Mainscreen.Locate(obstaclePointMS, platform.Obstacle.UpText, 5, 3) then
+          begin
+            Minimap.FacePoint(obstaclePointMM, 45);
+            Debug(platform.Obstacle);
+            WriteLn('Couldnt find obstacle, trying again');
+            platform.Obstacle.WalkHover(1, true);
+            continue;
+          end
+          else
+          begin
+            Mouse.Click(MOUSE_LEFT);
+            if not Mainscreen.DidRedClick() then
+              continue;
+          end;
           //nextPlatform := self.GetNextPlatform(platform)
           //nextObstacle := nextPlatform.Obstacle;
           //nextObstacleCoordinate := nextObstacle.Coordinates[0];
           //Mouse.Move(self.rsw.GetTileMSEx(nextPlatform.StartCoordinate, nextObstacleCoordinate));
-          if Mainscreen.DidRedClick()
-          and WaitUntil(not (self.GetCurrentPlatform() = platform), 200, 12000) then
+
+          if WaitUntil(not (self.GetCurrentPlatform() = platform), 200, 12000) then
           begin
             WaitUntil(not SRL.IsAnimating(Mainscreen.GetPlayerBox(), 100, 300), 300, 3000);
           end;
@@ -661,7 +721,7 @@ begin
   Mouse.MissChance := 1;
   Self.EatPercent := 90;
   Self.PlatformTimer.Init(120000); // 2 minute stuck timer
-  Self.Setup(ECourse.ARDOUGNE_AGILITY);
+  Self.Setup(ECourse.RELLEKKA_AGILITY);
   Antiban.MaxZoom := 15;
   Antiban.MinZoom := 25;
 end;
