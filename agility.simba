@@ -2,7 +2,7 @@
 {$IFDEF WINDOWS}
 {$DEFINE SCRIPT_GUI}
 {$ENDIF}
-{$UNDEF SCRIPT_REVISION}{$DEFINE SCRIPT_REVISION := '16'}
+{$UNDEF SCRIPT_REVISION}{$DEFINE SCRIPT_REVISION := '15'}
 {$include_once SRL-T/osr.simba}
 {$include_once WaspLib/osr.simba}
 {$I WaspLib/osr/walker/agility.graph}
@@ -680,13 +680,13 @@ begin
           obstaclePointMS := Minimap.PointToMS(obstaclePointMM);
           if not Mainscreen.Locate(obstaclePointMS, platform.Obstacle.UpText, 5, 3) then
           begin
-            Minimap.FacePoint(obstaclePointMM, 45);
             WriteLn('Couldnt find obstacle, trying again');
             platform.Obstacle.WalkHover(1, true);
             continue;
           end
           else
           begin
+            WaitUntil(not Minimap.isPlayerMoving(), Random(50, 150), 5000);
             Mouse.Click(MOUSE_LEFT);
             if not Mainscreen.DidRedClick() then
               continue;
