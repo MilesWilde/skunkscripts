@@ -2,7 +2,7 @@
 {$IFDEF WINDOWS}
 {$DEFINE SCRIPT_GUI}
 {$ENDIF}
-{$UNDEF SCRIPT_REVISION}{$DEFINE SCRIPT_REVISION := '18'}
+{$UNDEF SCRIPT_REVISION}{$DEFINE SCRIPT_REVISION := '17'}
 {$include_once SRL-T/osr.simba}
 {$include_once WaspLib/osr.simba}
 {$I WaspLib/osr/walker/agility.graph}
@@ -47,6 +47,7 @@ type
   );
 
   TAgility = record (TBaseBankScript)
+    UnprocessableTimer: TCountdown;
     State: EAgilityState;
     Platforms: array of TPlatform;
     CourseBoxes: TBoxArray;
@@ -360,7 +361,7 @@ begin
     me := self.rsw.GetMyPos();
     startMSRect := self.rsw.GetTileMSEx(me, self.StartObstacle.Coordinates[0]);
     Mouse.Move(startMSRect.Mean());
-    if Mainscreen.IsUpText(self.StartAction) then
+    if Mainscreen.IsUpText(self.StartAction) or ChooseOption.Select(self.StartAction, MOUSE_RIGHT, false, true) then
     begin
       Mouse.Click(MOUSE_LEFT);
       if Mainscreen.DidRedClick() then
@@ -743,7 +744,17 @@ begin
         end;
         EAgilityState.UNPROCESSABLE_STATE:
         begin
-          WriteLn('Unprocessable state. If the script is performing unexpectedly, go to https://waspscripts.com/scripts/skunkagility-by-skunkworks and ensure properly configured', self.rsw.GetMyPos());
+          if (UnprocessableTimer.Length > 0) and UnprocessableTimer.IsFinished() then
+          begin
+            WriteLn('Unprocessable state. If the script is performing unexpectedly, go to https://waspscripts.com/scripts/skunkagility-by-skunkworks and ensure properly configured', self.rsw.GetMyPos());
+            break;
+          end;
+
+          if UnprocessableTimer.Length = 0 then
+            UnprocessableTimer.Init(60 * 1000);
+
+          if UnprocessableTimer.IsFinished() then
+            UnprocessableTimer.Restart()
         end;
       end;
 
