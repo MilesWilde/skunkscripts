@@ -2,7 +2,7 @@
 {$IFDEF WINDOWS}
 {$DEFINE SCRIPT_GUI}
 {$ENDIF}
-{$UNDEF SCRIPT_REVISION}{$DEFINE SCRIPT_REVISION := '20'}
+{$UNDEF SCRIPT_REVISION}{$DEFINE SCRIPT_REVISION := '17'}
 {$include_once SRL-T/osr.simba}
 {$include_once WaspLib/osr.simba}
 {$I WaspLib/osr/walker/agility.graph}
@@ -719,7 +719,7 @@ begin
             Mouse.Click(MOUSE_LEFT); 
             if not Mainscreen.DidRedClick() then
               continue;
-            WaitUntil(not Minimap.isPlayerMoving(), Random(50, 150), 5000);
+            WaitUntil(not Minimap.isPlayerMoving(), Random(50, 150), 1000);
           end;
           //nextPlatform := self.GetNextPlatform(platform)
           //nextObstacle := nextPlatform.Obstacle;
@@ -744,10 +744,11 @@ begin
         end;
         EAgilityState.UNPROCESSABLE_STATE:
         begin
-          if (UnprocessableTimer.Length > 0) and UnprocessableTimer.IsFinished() then
+          if (self.UnprocessableTimer.Length > 0) and self.UnprocessableTimer.IsFinished() then
           begin
             WriteLn('Unprocessable state. If the script is performing unexpectedly, go to https://waspscripts.com/scripts/skunkagility-by-skunkworks and ensure properly configured', self.rsw.GetMyPos());
-            break;
+            UnprocessableTimer.Restart();
+            continue;
           end;
 
           if UnprocessableTimer.Length = 0 then
