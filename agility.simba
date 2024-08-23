@@ -696,6 +696,13 @@ var
 begin
   Self.Init(MaxActions, MaxTime);
   repeat
+    if SRL.Dice(4) then
+    begin
+      self.PlatformTimer.Pause();
+      Self.DoAntiban(True, False);
+      self.PlatformTimer.Resume();
+      continue;
+    end;
     try
       Self.State := Self.GetState();
       Self.SetAction(ToStr(State));
@@ -766,13 +773,6 @@ begin
           if UnprocessableTimer.IsFinished() then
             UnprocessableTimer.Restart()
         end;
-      end;
-
-      if SRL.Dice(4) then
-      begin
-        self.PlatformTimer.Pause();
-        Self.DoAntiban(True, False);
-        self.PlatformTimer.Resume();
       end;
     except
       WriteLn GetExceptionMessage();
