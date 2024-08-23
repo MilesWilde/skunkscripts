@@ -9,6 +9,8 @@
 
 const
   DEBUG_MODE: Boolean := False;
+  PIE_MODE: Boolean := False;
+  PIE_INTERVAL: Int32 := 60 * 1000; // 60 seconds
 
 begin
   Login.PlayerIndex := 0;
@@ -47,6 +49,7 @@ type
   );
 
   TAgility = record (TBaseBankScript)
+    PieTimer: TCountdown;
     UnprocessableTimer: TCountdown;
     State: EAgilityState;
     Platforms: array of TPlatform;
@@ -349,6 +352,12 @@ var
   startMS: TPoint;
   me: TPoint;
 begin
+  if PIE_MODE and self.PieTimer.IsFinished() then
+  begin
+    self.PieTimer.Restart();
+    Inventory.Consume(ERSConsumable.FOOD);
+  end;
+
   if DEBUG_MODE then
     Debug(self.StartObstacle);
 
@@ -775,6 +784,11 @@ end;
 procedure TAgility.Init(maxActions: UInt32; maxTime: UInt64); override;
 begin
   inherited;
+  if PIE_MODE then
+  begin
+    self.PieTimer.Init(PIE_INTERVAL);
+  end;
+
   RSGroundItems.Setup();
   Mouse.Speed := SRL.NormalRange(12, 21);
   Mouse.MissChance := 1;
