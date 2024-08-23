@@ -7,6 +7,9 @@
 {$include_once WaspLib/osr.simba}
 {$I WaspLib/osr/walker/agility.graph}
 
+const
+  DEBUG_MODE: Boolean := False;
+
 begin
   Login.PlayerIndex := 0;
 end;
@@ -85,7 +88,7 @@ begin
   if not Minimap.IsPointOn(p) then
     exit(-1);
 
-  Result := 540 - Self.Center().AngleBetween(p);
+  Result := 495 - Self.Center().AngleBetween(p);
 end;
 
 function TRSMinimap.FacePoint(p: TPoint; randomness: Int32 = 0): Boolean; override;
@@ -341,14 +344,31 @@ procedure TAgility.StartCourse();
 var
   startATPA: T2DPointArray;
   clusterIndex: Int32;
+  startMSRect: TRectangle;
+  startMS: TPoint;
+  me: TPoint;
 begin
+  if DEBUG_MODE then
+    Debug(self.StartObstacle);
+
   if (self.TotalActions mod Random(4, 5) = 0) then
     self.RotateToPreferredAngle();
 
   // cant see obstacle; walk to start
   if not Self.StartObstacle.Find(startATPA) then
   begin
-    Self.RSW.WebWalk(Self.StartCoordinate, 20);
+    me := self.rsw.GetMyPos();
+    startMSRect := self.rsw.GetTileMSEx(me, self.StartObstacle.Coordinates[0]);
+    Mouse.Move(startMSRect.Mean());
+    if Mainscreen.IsUpText(self.StartAction) then
+    begin
+      Mouse.Click(MOUSE_LEFT);
+      if Mainscreen.DidRedClick() then
+        Exit;
+    end;
+
+    if not me.InBox(Box(Self.StartCoordinate, 24, 24)) then
+      Self.RSW.WebWalk(Self.StartCoordinate, 20);
 
     if not self.InPreferredRange() then
       self.RotateToPreferredAngle();
@@ -491,7 +511,7 @@ end;
 procedure TAgility.SetupRellekka();
 begin
   Self.CityBox := [1588, 1, 1997, 396];
-  Self.PreferredAngle := [135, 225];
+  Self.PreferredAngle := [100, 225];
   Self.StartCoordinate := [1744, 172];
   Self.StartAction := 'Climb';
   Self.Platforms := [
@@ -524,7 +544,7 @@ begin
 
   Self.StartObstacle.Setup(9, [[493, 1085]]);
   Self.StartObstacle.Setup([Self.StartAction]);
-  Self.StartObstacle.Finder.Colors += CTS2(9870489, 2, 1.22, 0.42);
+  Self.StartObstacle.Finder.Colors += CTS2(3428709, 4, 0.08, 0.30);
 end;
 
 procedure TAgility.SetupCanifis();
@@ -535,12 +555,12 @@ begin
   Self.StartAction := 'Climb';
   Self.Platforms := [
     SetupPlatform([740, 884, 772, 930], [750, 888], 'Jump', 5000, [], 7),
-    SetupPlatform([704, 849, 743, 868], [714, 861], 'Jump', 5500, [], 5),
+    SetupPlatform([704, 849, 743, 868], [710, 861], 'Jump', 5500, [], 5),
     SetupPlatform([660, 857, 700, 889], [665, 883], 'Jump', 4000, []),
     SetupPlatform([1194, 1178, 1223, 1218], [1213, 1214], 'Jump', 4000, []),
     SetupPlatform([631, 929, 664, 957], [646, 946], 'Pole-vault', 7500, CTS2(3037806, 6, 0.08, 0.32)),
-    SetupPlatform([1230, 1262, 1318, 1310], [1317, 1275], 'Jump', 7200, []),
-    SetupPlatform([755, 944, 791, 985], [766, 947], 'Jump', 4500, [])
+    SetupPlatform([1230, 1262, 1318, 1310], [1315, 1275], 'Jump', 7200, []),
+    SetupPlatform([755, 944, 791, 985], [762, 947], 'Jump', 4500, [])
   ];
 
   Self.StartObstacle.Setup(7, [[201, 1031]]);
@@ -632,8 +652,8 @@ end;
 procedure TAntiban.Setup(); override;
 begin
   Self.Skills := [ERSSkill.TOTAL, ERSSkill.AGILITY];
-  Self.MinZoom := 15;
-  Self.MaxZoom := 25;
+  Self.MinZoom := 0;
+  Self.MaxZoom := 5;
 
   Self.AddBreak(45  * ONE_MINUTE,  5  * ONE_MINUTE, 0.30, 0.10);
   Self.AddBreak(60  * ONE_MINUTE,  1  * ONE_MINUTE, 0.30, 0.10);
@@ -675,21 +695,30 @@ begin
         EAgilityState.CROSSING_OBSTACLE:
         begin
           platform := Self.GetCurrentPlatform();
+          if DEBUG_MODE then
+            Debug(platform.Obstacle);
+
           obstaclePointWorld := platform.Obstacle.Coordinates[0];
           obstaclePointMM := self.rsw.WorldToMM(obstaclePointWorld);
           obstaclePointMS := Minimap.PointToMS(obstaclePointMM);
           if not Mainscreen.Locate(obstaclePointMS, platform.Obstacle.UpText, 5, 3) then
           begin
             WriteLn('Couldnt find obstacle, trying again');
-            platform.Obstacle.WalkHover(1, true);
-            continue;
+            if platform.Obstacle.WalkHover(1, true) then
+            begin
+              Mouse.Click(MOUSE_LEFT);
+              if not Mainscreen.DidRedClick() then
+                continue;
+
+              WaitUntil(not Minimap.isPlayerMoving(), Random(50, 150), 5000);
+            end;
           end
           else
           begin
-            WaitUntil(not Minimap.isPlayerMoving(), Random(50, 150), 5000);
-            Mouse.Click(MOUSE_LEFT);
+            Mouse.Click(MOUSE_LEFT); 
             if not Mainscreen.DidRedClick() then
               continue;
+            WaitUntil(not Minimap.isPlayerMoving(), Random(50, 150), 5000);
           end;
           //nextPlatform := self.GetNextPlatform(platform)
           //nextObstacle := nextPlatform.Obstacle;
@@ -740,8 +769,8 @@ begin
   Self.EatPercent := 90;
   Self.PlatformTimer.Init(120000); // 2 minute stuck timer
   Self.Setup(ECourse.RELLEKKA_AGILITY);
-  Antiban.MaxZoom := 15;
-  Antiban.MinZoom := 25;
+  Antiban.MaxZoom := 12;
+  Antiban.MinZoom := 18;
 end;
 
 var
