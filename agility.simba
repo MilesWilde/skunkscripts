@@ -1,5 +1,5 @@
 {$UNDEF SCRIPT_ID}{$DEFINE SCRIPT_ID := '62d50aa2-8708-43b3-b40e-b4406b9b1732'}
-{$UNDEF SCRIPT_REVISION}{$DEFINE SCRIPT_REVISION := '23'}
+{$UNDEF SCRIPT_REVISION}{$DEFINE SCRIPT_REVISION := '25'}
 {$include_once SRL-T/osr.simba}
 {$include_once WaspLib/osr.simba}
 {$I WaspLib/osr/walker/agility.graph}
