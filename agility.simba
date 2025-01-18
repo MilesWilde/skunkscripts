@@ -76,6 +76,19 @@ const
 
 // SRL STUFF
 
+function LoginIfNot(): Boolean;
+begin
+  if not RSClient.IsLoggedIn() then
+  begin
+    if not Login.LoginPlayer() then
+    begin
+      TerminateScript("Could not log in player");
+    end
+    else
+      Result := True;
+  end;
+end;
+
 procedure TRSMinimap.RotateWithinAngles(min, max: Int32);
 var
   minMaxAvg: Int32 := Floor((min + max) div 2);
@@ -874,6 +887,7 @@ begin
         end;
         EAgilityState.UNPROCESSABLE_STATE:
         begin
+          LoginIfNot();
           if (self.UnprocessableTimer.Length > 0) and self.UnprocessableTimer.IsFinished() then
           begin
             WriteLn('Unprocessable state. If the script is performing unexpectedly, go to https://waspscripts.com/scripts/skunkagility-by-skunkworks and ensure properly configured', self.rsw.GetMyPos());
