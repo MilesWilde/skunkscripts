@@ -105,7 +105,7 @@ begin
   if not Minimap.IsPointOn(p) then
     exit(-1);
 
-  Result := 495 - Self.Center().AngleBetween(p);
+  Result := 495 - Self.Center.AngleBetween(p);
 end;
 
 function TRSMinimap.FacePoint(p: TPoint; randomness: Int32 = 0): Boolean; override;
@@ -221,7 +221,7 @@ begin
   if self.rsw.GetMyPos().InBox(upstairsBox)
     then Exit(True);
 
-  SRL.FindColors(blackTPA, BLACK_COLOR, Minimap.Bounds());
+  SRL.FindColors(blackTPA, BLACK_COLOR, Minimap.Bounds);
   lotsOfBlackPoints := blackTPA.len() >= 10000;
 
   //temp setting
@@ -479,6 +479,7 @@ begin
   else
   begin
     self.DebugLn('we failed to mouse the starting obstacle even though we are near it, lets rotate');
+    Mainscreen.CloseInterface(True);
     self.RotateToPreferredAngle();
   end;
 end;
@@ -504,7 +505,7 @@ begin
   if self.rsw.GetMyPos().InBox(upstairsBox)
     then Exit(True);
 
-  SRL.FindColors(blackTPA, BLACK_COLOR, Minimap.Bounds());
+  SRL.FindColors(blackTPA, BLACK_COLOR, Minimap.Bounds);
   lotsOfBlackPoints := blackTPA.len() >= 10000;
 
   allBlackContained := True;
@@ -819,6 +820,7 @@ begin
         Exit(True);
       end
     end
+    else
     else if WaitUntil(self.GetCurrentPlatform() = self.GetNextPlatform(platform), 200, platform.DurationNextObstacle) then
     begin
       self.DebugLn('we are on the next platform');
