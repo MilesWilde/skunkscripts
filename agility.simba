@@ -820,7 +820,6 @@ begin
         Exit(True);
       end
     end
-    else
     else if WaitUntil(self.GetCurrentPlatform() = self.GetNextPlatform(platform), 200, platform.DurationNextObstacle) then
     begin
       self.DebugLn('we are on the next platform');
