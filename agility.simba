@@ -123,8 +123,6 @@ var
   bmp: TMufasaBitmap;
   path: String;
 begin
-  writeln('forcesavescreenshot terminate');
-
   bmp.FromClient();
   o.Draw(bmp);
   bmp.HideAccountDetails();
@@ -132,7 +130,7 @@ begin
 
   bmp.SaveToFile(path);
   bmp.Free();
-  writeln('forcesavescreenshot terminated');
+  writeln('Saved screenshot to ', path);
 end;
 
 
@@ -554,7 +552,7 @@ begin
 
   if not handled then
   begin
-    WriteLn 'We are stuck and couldnt handle it. Please send this to skunkworks:';
+    WriteLn 'We are stuck and couldnt handle it. Please show this screenshot to skunkworks:';
     platform := self.GetCurrentPlatform();
     ForceSaveScreenshotObj(platform.Obstacle);
     Logout.ClickLogout();
@@ -820,7 +818,6 @@ begin
         Exit(True);
       end
     end
-    else
     else if WaitUntil(self.GetCurrentPlatform() = self.GetNextPlatform(platform), 200, platform.DurationNextObstacle) then
     begin
       self.DebugLn('we are on the next platform');
@@ -850,6 +847,7 @@ var
   obstaclePointMM, obstaclePointMS: TPoint;
   clickedObstacle: Boolean;
   lastPlatform: TPlatform;
+  attempts: Integer;
 begin
   WriteLn('starting');
   Self.Init(MaxActions, MaxTime);
@@ -879,7 +877,8 @@ begin
             WaitUntil(self.rsw.GetMyPos.DistanceTo(self.GetCurrentPlatform().StartCoordinate) <= 2, 200, 2000);
             RSGroundItems.MarkOfGrace.Click(true, 1);
             Wait(2000, 2500);
-          until not RSGroundItems.MarkOfGrace.Find(graceATPA);
+            attempts += 1;
+          until not RSGroundItems.MarkOfGrace.Find(graceATPA) or not self.IsMarkOfGraceOnPlatform(self.GetCurrentPlatform()) or (attempts >= 3);
           self.GracePlatform := -1;
         end;
         EAgilityState.STUCK: self.HandleStuck();
