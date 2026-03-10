@@ -918,6 +918,7 @@ begin
   if PIE_MODE then
   begin
     self.PieTimer.Init(PIE_INTERVAL);
+    Inventory.Consume(ERSConsumable.FOOD);
   end;
 
   RSGroundItems.Setup();
